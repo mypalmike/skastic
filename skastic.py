@@ -1,9 +1,11 @@
 #!/usr/bin/env python
 
+import ast
 import cv2
 import numpy as np
 from queue import Queue
 import random
+import subprocess
 import sys
 
 
@@ -25,6 +27,45 @@ EDGE_NODE = -1
 class CompilerException(Exception):
   pass
 
+
+# class RuntimeEnvironment:
+#   # Based on norvig's webpage on a little lisp
+#   def __init__(self):
+#     self.builtins = {
+#         '+':op.add, '-':op.sub, '*':op.mul, '/':op.div,
+#         '>':op.gt, '<':op.lt, '>=':op.ge, '<=':op.le, '=':op.eq,
+#         'abs':     abs,
+#         'append':  op.add,
+#         'apply':   apply,
+#         'begin':   lambda *x: x[-1],
+#         'car':     lambda x: x[0],
+#         'cdr':     lambda x: x[1:],
+#         'cons':    lambda x,y: [x] + y,
+#         'eq?':     op.is_,
+#         'equal?':  op.eq,
+#         'length':  len,
+#         'list':    lambda *x: list(x),
+#         'list?':   lambda x: isinstance(x,list),
+#         'map':     map,
+#         'max':     max,
+#         'min':     min,
+#         'not':     op.not_,
+#         'null?':   lambda x: x == [],
+#         'number?': lambda x: isinstance(x, Number),
+#         'procedure?': callable,
+#         'round':   round,
+#         'symbol?': lambda x: isinstance(x, Symbol),
+#     }
+#     self.builtins.update(vars(math))
+
+#     self.globals = {}
+
+# class Function:
+#   def __init__(self):
+#     pass
+
+#   def __call__(self):
+#     pass
 
 # Categorize a contour as a box, a line, or junk (small spots in an image)
 def categorize_contour(contour):
@@ -61,10 +102,117 @@ class ContourNode:
     self.img_contour = img_contour
     self.contour = contour
     self.children = []
+    self.text = None
 
     # Centroid computation from the opencv docs on contour attributes. (i.e. I have no clue)
     moments = cv2.moments(contour)
     self.centroid = (int(moments['m10']/moments['m00']), int(moments['m01']/moments['m00']))
+
+  def save_bounding_box(self, img, filename):
+    x, y, width, height = cv2.boundingRect(self.contour)
+    bounding_box = img[y:y+height, x:x+width]
+    cv2.imwrite(filename, bounding_box)
+
+  def parse_text(self, img):
+    filename = "obj_{}.png".format(id(self))
+    self.save_bounding_box(img, filename)
+    cmd = [
+        'tesseract',
+        filename,
+        'stdout',
+        '--psm',
+        '7',
+        '-l',
+        'eng+equ',
+        '-c',
+        'tessedit_char_whitelist=abcdefghijklmnopqrstuvwxyz0123456789=+-*/'
+    ]
+    result = subprocess.run(cmd, stdout=subprocess.PIPE)
+    self.text = result.stdout.decode('ascii').strip() or ''
+
+  def to_python_ast(self):
+    print(self.text)
+    if self.text == 'define':
+      fn_node = self.children[0]
+      fn_name = fn_node.text
+      param_nodes = fn_node.children
+      ast_args = ast.arguments(
+          args=[ast.Name(id=x.text, ctx=ast.Param()) for x in param_nodes],
+          vararg=None, kwarg=None, defaults=[])
+      ast_function_def = ast.FunctionDef(
+          name=fn_name,
+          args=ast_args,
+          body=ast.Return(value=self.children[1].to_python_ast()),
+          decorator_list=[])
+      ast_module = ast.Module(body=ast_function_def)
+      return ast_module
+    elif self.text == 'if':
+      test = self.children[0].to_python_ast(),
+      body = [self.children[1].to_python_ast()],
+      orelse = []
+      if len(self.children) == 3:
+        orelse = [self.children[2].to_python_ast()]
+      return ast.If(
+          test=test,
+          body=body,
+          orelse=orelse)
+    elif self.text.isdigit():
+      return ast.Num(
+          n=int(self.text))
+    elif self.text == '=':
+      left = self.children[0].to_python_ast()
+      right = self.children[1].to_python_ast()
+      return ast.Compare(
+          left=left,
+          ops=[ast.Eq()],
+          comparators=[right])
+    elif self.text == '+':
+      left = self.children[0].to_python_ast()
+      right = self.children[1].to_python_ast()
+      return ast.BinOp(
+          left=left,
+          op=ast.Add(),
+          right=right)
+    elif self.text == '-':
+      left = self.children[0].to_python_ast()
+      right = self.children[1].to_python_ast()
+      return ast.BinOp(
+          left=left,
+          op=ast.Sub(),
+          right=right)
+    elif self.text == '*':
+      left = self.children[0].to_python_ast()
+      right = self.children[1].to_python_ast()
+      return ast.BinOp(
+          left=left,
+          op=ast.Mult(),
+          right=right)
+    else:
+      return ast.Name(
+          id=self.text,
+          ctx=ast.Load())
+
+  # def eval(self, env):
+  #   if self.text == 'define':
+  #     fn_node = self.children[0]
+  #     fn_name = fn_node.text
+  #     param_nodes = symbol_node.children
+  #     pass # TODO
+  #   else if self.text == 'if':
+  #     pass # TODO
+  #   else if self.text.isdigit():
+  #     return int(text)
+  #   else if self.text in env.builtins:
+  #     val = env.builtins[self.text]
+  #     # return val(env)
+  #   else if self.text in env.globals:
+  #     val = env.globals[self.text]
+
+  #     return val.eval(env)
+  #   else if self.text in env.stack_frame:
+  #     val = env.stack_frame[self.text]
+  #     if val.isdigit():
+  #       return int(val)
 
 
 class ContourLine:
@@ -134,14 +282,6 @@ class ContourLine:
     self.endpoints[1] = self.farthest(self.endpoints[0])
 
 
-def image_to_objects(filename):
-  visual_analysis = VisualAnalysis(filename)
-
-
-# Returns an ast.
-def image_to_ast(filename):
-  pass
-
 
 class VisualAnalysis:
   def __init__(self, filename):
@@ -154,8 +294,7 @@ class VisualAnalysis:
     self.img_grey = cv2.cvtColor(self.img_orig, cv2.COLOR_BGR2GRAY)
     # _, self.img_contour = cv2.threshold(self.img_grey, 240, 255, cv2.THRESH_BINARY)
     _, self.img_contour = cv2.threshold(self.img_grey, 250, 255, cv2.THRESH_BINARY_INV)
-    # _, self.img_lines = cv2.threshold(self.img_grey, 100, 240, cv2.THRESH_BINARY)
-
+    _, self.img_text = cv2.threshold(self.img_grey, 150, 255, cv2.THRESH_BINARY)
     self.root_node = None
 
     self.contours = self.find_contours()
@@ -164,9 +303,20 @@ class VisualAnalysis:
 
     self.contour_lines, self.contour_nodes = self.categorize_contours()
 
+    # self.img_text = self.text_mask_img()
+
     self.build_graph()
     self.build_parse_tree()
 
+    self.parse_nodes()
+
+    # self.dump_parse_tree_text(self.root_node)
+
+    python_ast = self.root_node.to_python_ast()
+
+    ast.dump(python_ast)
+
+    # exec(compile(python_ast, filename="<ast>", mode="exec"))
 
   def find_contours(self):
     _, contours, _ = cv2.findContours(
@@ -176,20 +326,17 @@ class VisualAnalysis:
     )
     return contours
 
+  def text_mask_img(self):
+    img = self.img_grey.copy()
+    mask = np.ones(img.shape[:2], dtype="uint8") * 255
+    for contour_node in self.contour_nodes:
+      cv2.drawContours(mask, contour_node.contour, -1, 0, -1)
+    image = cv2.bitwise_and(img, img, mask=mask)
+    return img
+
   def draw_contours(self, img):
     for contour_line in self.contour_lines:
       cv2.drawContours(img, [contour_line.contour], 0, rand_color(red=0), 3)
-
-    # for index, contour in enumerate(self.contours):
-    #   contour_category = categorize_contour(contour)
-
-    #   if contour_category != CONTOUR_JUNK:
-    #     if contour_category == CONTOUR_LINE:
-    #       color = rand_color(red=0) # (0, 0, 255)
-    #     else:
-    #       color = (0, 0, 255)
-
-    #     cv2.drawContours(img, self.contours, index, color, 3)
 
   def draw_lines(self, img):
     for contour_line in self.contour_lines:
@@ -217,7 +364,6 @@ class VisualAnalysis:
   # Categorize contours.
   # Returns a tuple of [ContourLine...], [ContourNode...]
   def categorize_contours(self):
-    print ("categorize_contours")
     contour_lines = []
     contour_nodes = []
 
@@ -281,17 +427,11 @@ class VisualAnalysis:
     if not self.root_node:
       raise CompilerException("Root node not found")
 
-    # remaining_lines = set(self.contour_lines)
-    # remaining_lines.remove(edge_line)
-
-    # remaining_nodes = set(self.contour_nodes)
-    # remaining_nodes.remove(root_node)
     visited_nodes = set()
 
     stack = [self.root_node]
 
     while stack:
-      print("Processing a node")
       curr_node = stack.pop()
       visited_nodes.add(curr_node)
       connected_nodes = self.connected_nodes(curr_node)
@@ -300,12 +440,19 @@ class VisualAnalysis:
           curr_node.children.append(connected_node)
           stack.append(connected_node)
 
-    # We have parent hierarchy, but child order is currently arbitrary.
-    # Sort by node centroid, left to right.
-    # Ideally, we would use angle of connection, allowing for long lines which
-    # are not right-to-left. But for now, this will do.
+    # Now we have parent hierarchy, but child order is currently arbitrary.
+    # Sort by x position of child node centroid, left to right.
     for node in self.contour_nodes:
       node.children.sort(key=lambda x: x.centroid[0])
+
+  def parse_nodes(self):
+    for node in self.contour_nodes:
+      node.parse_text(self.img_text)
+
+  def dump_parse_tree_text(self, node):
+    print ('{} : {}'.format(id(node), node.text))
+    for child_node in node.children:
+      self.dump_parse_tree_text(child_node)
 
   def draw(self):
     img_out = self.img_orig.copy()
@@ -315,6 +462,7 @@ class VisualAnalysis:
     self.draw_parse_tree(img_out, self.root_node, 0)
     cv2.imshow("Contours", img_out)
     cv2.imshow("Mask", self.img_contour)
+    cv2.imshow("Text", self.img_text)
 
     # im_out = cv2.drawKeypoints(self.img_orig, self.keypoints, np.array([]), (0,0,255), cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
     # self.lsd.drawSegments(im_out, self.lines)
@@ -333,48 +481,3 @@ def main(args=sys.argv[1:]):
 
 if __name__ == '__main__':
   main()
-
-
-  # def detect_blobs(self):
-  #   # Setup SimpleBlobDetector parameters.
-  #   params = cv2.SimpleBlobDetector_Params()
-
-  #   # Change thresholds
-  #   # params.minThreshold = 100
-  #   # params.maxThreshold = 250
-
-
-  #   # Filter by Area.
-  #   params.filterByArea = True
-  #   params.minArea = 100
-  #   params.maxArea = 100000
-
-  #   # Filter by Circularity
-  #   params.filterByCircularity = True
-  #   params.minCircularity = 0.2
-
-  #   # Filter by Convexity
-  #   params.filterByConvexity = True
-  #   params.minConvexity = 0.01
-
-  #   # Filter by Inertia
-  #   params.filterByInertia = True
-  #   params.minInertiaRatio = 0.01
-
-  #   ver = (cv2.__version__).split('.')
-  #   if int(ver[0]) < 3 :
-  #     detector = cv2.SimpleBlobDetector(params)
-  #   else :
-  #     detector = cv2.SimpleBlobDetector_create(params)
-
-  #   keypoints = detector.detect(self.img_contour)
-
-  #   print(keypoints[0])
-
-  #   return keypoints
-
-  # def detect_lines(self):
-  #   lsd = cv2.createLineSegmentDetector(cv2.LSD_REFINE_STD)
-  #   lines, width, prec, nfa = lsd.detect(self.img_lines)
-
-  #   return lsd, lines
