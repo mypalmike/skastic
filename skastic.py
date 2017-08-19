@@ -188,9 +188,26 @@ class ContourNode:
           op=ast.Mult(),
           right=right)
     else:
-      return ast.Name(
-          id=self.text,
-          ctx=ast.Load())
+      if len(self.children) == 0:
+        # Local var
+        return ast.Name(
+            id=self.text,
+            ctx=ast.Load())
+      else:
+        # Function call
+        if self.children[0].text == '':
+          # Empty parameters if child is blank.
+          args = []
+        else:
+          args = [x.to_python_ast() for x in self.children]
+          return ast.Call(
+              func=ast.Name(
+                  id=self.text,
+                  ctx=ast.Load()),
+              args=args,
+              keywords=[],
+              starargs=None,
+              kwargs=None)
 
   # def eval(self, env):
   #   if self.text == 'define':
