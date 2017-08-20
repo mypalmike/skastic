@@ -128,34 +128,42 @@ class ContourNode:
         'tessedit_char_whitelist=abcdefghijklmnopqrstuvwxyz0123456789=+-*/'
     ]
     result = subprocess.run(cmd, stdout=subprocess.PIPE)
-    self.text = result.stdout.decode('ascii').strip() or ''
+    self.text = result.stdout.decode('ascii').strip().lower() or ''
 
   def to_python_ast(self):
-    print(self.text)
+    # print(self.text)
     if self.text == 'define':
       fn_node = self.children[0]
       fn_name = fn_node.text
       param_nodes = fn_node.children
       ast_args = ast.arguments(
-          args=[ast.Name(id=x.text, ctx=ast.Param()) for x in param_nodes],
-          vararg=None, kwarg=None, defaults=[])
-      ast_function_def = ast.FunctionDef(
+          args=[ast.arg(arg=x.text, annotation=None) for x in param_nodes],
+          vararg=None,
+          kwonlyargs=[],
+          kw_defaults=[],
+          kwarg=None,
+          defaults=[])
+      return ast.FunctionDef(
           name=fn_name,
           args=ast_args,
-          body=ast.Return(value=self.children[1].to_python_ast()),
-          decorator_list=[])
-      ast_module = ast.Module(body=ast_function_def)
-      return ast_module
+          body=[ast.Return(value=self.children[1].to_python_ast())],
+          decorator_list=[],
+          returns=None)
     elif self.text == 'if':
-      test = self.children[0].to_python_ast(),
-      body = [self.children[1].to_python_ast()],
-      orelse = []
+      tst = self.children[0].to_python_ast()
+      body = self.children[1].to_python_ast()
       if len(self.children) == 3:
-        orelse = [self.children[2].to_python_ast()]
-      return ast.If(
-          test=test,
+        orelse = self.children[2].to_python_ast()
+      else:
+        orelse = ast.NameConstant(value=None)
+      return ast.IfExp(
+          test=tst,
           body=body,
           orelse=orelse)
+    elif self.text == 'true':
+      return ast.NameConstant(value=True)
+    elif self.text == 'false':
+      return ast.NameConstant(value=False)
     elif self.text.isdigit():
       return ast.Num(
           n=int(self.text))
@@ -205,31 +213,7 @@ class ContourNode:
                   id=self.text,
                   ctx=ast.Load()),
               args=args,
-              keywords=[],
-              starargs=None,
-              kwargs=None)
-
-  # def eval(self, env):
-  #   if self.text == 'define':
-  #     fn_node = self.children[0]
-  #     fn_name = fn_node.text
-  #     param_nodes = symbol_node.children
-  #     pass # TODO
-  #   else if self.text == 'if':
-  #     pass # TODO
-  #   else if self.text.isdigit():
-  #     return int(text)
-  #   else if self.text in env.builtins:
-  #     val = env.builtins[self.text]
-  #     # return val(env)
-  #   else if self.text in env.globals:
-  #     val = env.globals[self.text]
-
-  #     return val.eval(env)
-  #   else if self.text in env.stack_frame:
-  #     val = env.stack_frame[self.text]
-  #     if val.isdigit():
-  #       return int(val)
+              keywords=[])
 
 
 class ContourLine:
@@ -299,7 +283,6 @@ class ContourLine:
     self.endpoints[1] = self.farthest(self.endpoints[0])
 
 
-
 class VisualAnalysis:
   def __init__(self, filename):
     # Load image, then do various conversions and thresholding.
@@ -327,13 +310,37 @@ class VisualAnalysis:
 
     self.parse_nodes()
 
-    # self.dump_parse_tree_text(self.root_node)
-
     python_ast = self.root_node.to_python_ast()
 
-    ast.dump(python_ast)
+    # HACK TO TEST FACTORIAL FUNCTION
+    # test_ast = ast.Module(
+    #     body=[
+    #         python_ast,
+    #         ast.Expr(
+    #             value=ast.Call(
+    #                 func=ast.Name(id='print', ctx=ast.Load()),
+    #                 args=[
+    #                     ast.Call(
+    #                         func=ast.Name(id='add1', ctx=ast.Load()),
+    #                         args=[ast.Num(n=1)],
+    #                         keywords=[])],
+    #                 keywords=[]))])
 
-    # exec(compile(python_ast, filename="<ast>", mode="exec"))
+    test_ast = ast.Module(
+        body=[
+            ast.Expr(
+                value=ast.Call(
+                    func=ast.Name(id='print', ctx=ast.Load()),
+                    args=[python_ast],
+                    keywords=[]))])
+
+    ast.fix_missing_locations(test_ast)
+
+    # print(ast.dump(test_ast, include_attributes=True))
+    # print()
+    # print(ast.dump(test_ast))
+
+    exec(compile(test_ast, filename="<ast>", mode="exec"))
 
   def find_contours(self):
     _, contours, _ = cv2.findContours(
