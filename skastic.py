@@ -1,24 +1,16 @@
 #!/usr/bin/env python
 
 import ast
-import cv2
-import numpy as np
-from queue import Queue
+# from queue import Queue
 import random
 import subprocess
 import sys
 
+import cv2
+import numpy as np
 
-# Ratio of area/perimeter of a contour beneath which it is assumed to be a line
-LINEAR_HEURISTIC = 5.0
+from contour_utils import categorize_contour, CONTOUR_BOX, CONTOUR_LINE, extreme_points
 
-# Perimeter of contour below which it's considered spurious
-PERIMETER_HEURISTIC = 40.0
-
-# Contour categories
-CONTOUR_JUNK = 1
-CONTOUR_LINE = 2
-CONTOUR_BOX = 3
 
 # Marker for edge node
 EDGE_NODE = -1
@@ -28,62 +20,11 @@ class CompilerException(Exception):
   pass
 
 
-# class RuntimeEnvironment:
-#   # Based on norvig's webpage on a little lisp
-#   def __init__(self):
-#     self.builtins = {
-#         '+':op.add, '-':op.sub, '*':op.mul, '/':op.div,
-#         '>':op.gt, '<':op.lt, '>=':op.ge, '<=':op.le, '=':op.eq,
-#         'abs':     abs,
-#         'append':  op.add,
-#         'apply':   apply,
-#         'begin':   lambda *x: x[-1],
-#         'car':     lambda x: x[0],
-#         'cdr':     lambda x: x[1:],
-#         'cons':    lambda x,y: [x] + y,
-#         'eq?':     op.is_,
-#         'equal?':  op.eq,
-#         'length':  len,
-#         'list':    lambda *x: list(x),
-#         'list?':   lambda x: isinstance(x,list),
-#         'map':     map,
-#         'max':     max,
-#         'min':     min,
-#         'not':     op.not_,
-#         'null?':   lambda x: x == [],
-#         'number?': lambda x: isinstance(x, Number),
-#         'procedure?': callable,
-#         'round':   round,
-#         'symbol?': lambda x: isinstance(x, Symbol),
-#     }
-#     self.builtins.update(vars(math))
+def rand_bgr(blue=None, green=None, red=None):
+  """
+  Random BGR tuple as a color. Can specify fixed value for any component.
 
-#     self.globals = {}
-
-# class Function:
-#   def __init__(self):
-#     pass
-
-#   def __call__(self):
-#     pass
-
-# Categorize a contour as a box, a line, or junk (small spots in an image)
-def categorize_contour(contour):
-  area = cv2.contourArea(contour)
-  perimeter = cv2.arcLength(contour, True)
-
-  if perimeter < PERIMETER_HEURISTIC:
-    return CONTOUR_JUNK
-
-  ratio = area / perimeter
-  if ratio < LINEAR_HEURISTIC:
-    return CONTOUR_LINE
-  else:
-    return CONTOUR_BOX
-
-
-# Get a random BGR tuple as a color. Can specify fixed value for any component.
-def rand_color(blue=None, green=None, red=None):
+  """
   if blue is None:
     blue = random.randint(0, 255)
   if green is None:
@@ -91,10 +32,6 @@ def rand_color(blue=None, green=None, red=None):
   if red is None:
     red = random.randint(0, 255)
   return (blue, green, red)
-
-
-def offset_point(point, delta):
-  return (point[0] + delta[0], point[1] + delta[1])
 
 
 class ContourNode:
@@ -220,67 +157,8 @@ class ContourLine:
   def __init__(self, img_contour, contour):
     self.img_contour = img_contour
     self.contour = contour
-    self.endpoints = [None, None]  # (x, y) coordinates of the 2 endpoints
     self.nodes = [None, None]  # Connected nodes in graph
-
-    self.find_endpoints()
-
-  def neighbors(self, point):
-    results = []
-    max_y, max_x = self.img_contour.shape
-    for delta in [(-1, 0), (1, 0), (0, -1), (0, 1)]:
-      candidate = offset_point(point, delta)
-      if (candidate[0] >= 0 and
-          candidate[0] <= max_x and
-          candidate[1] >= 0 and
-          candidate[1] <= max_y and
-          self.img_contour[candidate[1], candidate[0]] == 255):
-        results.append(candidate)
-    return results
-
-  # Use breadth-first search style shortest path algorithm to find farthest point.
-  def farthest(self, point):
-    farthest_point = point
-    farthest_dist = 0
-
-    searched = {}
-    queue = Queue()
-
-    searched[point] = 0
-    queue.put(point)
-
-    while not queue.empty():
-      curr_point = queue.get()
-      curr_dist = searched.get(curr_point)
-      for neighbor in self.neighbors(curr_point):
-        neighbor_dist = searched.get(neighbor)
-        if neighbor_dist is None:
-          new_dist = curr_dist + 1
-          if new_dist > farthest_dist:
-            farthest_dist = new_dist
-            farthest_point = neighbor
-          searched[neighbor] = new_dist
-          queue.put(neighbor)
-
-    return farthest_point
-
-  def find_endpoints(self):
-    # Current approach:
-    # Pick a point of the contour (these are at the edge of the contour space).
-    # 1. Perform a depth-first traversal of the image, assign total pixel distance
-    # to each pixel from the starting point in the contour. The most distant pixel
-    # is one endpoint. Then perform the same algorithm, using this endpoint as the
-    # starting point. The farthest point is the other endpoint.
-    # Yes I know doing pixel access in python is slow. I may make a C python module
-    # for this since it seems to be of general use.
-
-    # First, pick start point for search.isn't
-    x = self.contour[0][0][0]
-    y = self.contour[0][0][1]
-    point = (x, y)
-
-    self.endpoints[0] = self.farthest(point)
-    self.endpoints[1] = self.farthest(self.endpoints[0])
+    self.endpoints = extreme_points(self.img_contour, self.contour)
 
 
 class VisualAnalysis:
@@ -292,18 +170,13 @@ class VisualAnalysis:
       raise CompilerException("File '{}' not found".format(filename))
 
     self.img_grey = cv2.cvtColor(self.img_orig, cv2.COLOR_BGR2GRAY)
-    # _, self.img_contour = cv2.threshold(self.img_grey, 240, 255, cv2.THRESH_BINARY)
     _, self.img_contour = cv2.threshold(self.img_grey, 250, 255, cv2.THRESH_BINARY_INV)
     _, self.img_text = cv2.threshold(self.img_grey, 150, 255, cv2.THRESH_BINARY)
     self.root_node = None
 
     self.contours = self.find_contours()
-    # self.keypoints = self.detect_blobs()
-    # self.lsd, self.lines = self.detect_lines()
 
     self.contour_lines, self.contour_nodes = self.categorize_contours()
-
-    # self.img_text = self.text_mask_img()
 
     self.build_graph()
     self.build_parse_tree()
@@ -335,11 +208,6 @@ class VisualAnalysis:
                     keywords=[]))])
 
     ast.fix_missing_locations(test_ast)
-
-    # print(ast.dump(test_ast, include_attributes=True))
-    # print()
-    # print(ast.dump(test_ast))
-
     exec(compile(test_ast, filename="<ast>", mode="exec"))
 
   def find_contours(self):
@@ -360,7 +228,7 @@ class VisualAnalysis:
 
   def draw_contours(self, img):
     for contour_line in self.contour_lines:
-      cv2.drawContours(img, [contour_line.contour], 0, rand_color(red=0), 3)
+      cv2.drawContours(img, [contour_line.contour], 0, rand_bgr(red=0), 3)
 
   def draw_lines(self, img):
     for contour_line in self.contour_lines:
@@ -488,20 +356,13 @@ class VisualAnalysis:
     cv2.imshow("Mask", self.img_contour)
     cv2.imshow("Text", self.img_text)
 
-    # im_out = cv2.drawKeypoints(self.img_orig, self.keypoints, np.array([]), (0,0,255), cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
-    # self.lsd.drawSegments(im_out, self.lines)
-    # cv2.imshow("Keypoints", im_out)
-
-
-# Draw detected blobs as red circles.
-# cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS ensures
-# the size of the circle corresponds to the size of blob
 
 def main(args=sys.argv[1:]):
   filename = args[0]
   visual_analysis = VisualAnalysis(filename)
   visual_analysis.draw()
   cv2.waitKey(0)
+
 
 if __name__ == '__main__':
   main()
