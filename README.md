@@ -1,5 +1,5 @@
 # skastic
-Visual programming language: SKetches of Abstract Syntax Trees. IC.
+Visual programming language: SKetches of Abstract Syntax Trees. I. C.
 
 Skastic is a visual, functional programming language where programs are contained in image files (png). Skastic program files contain nodes and edges representing an abstract syntax tree, or parse tree.
 
