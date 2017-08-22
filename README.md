@@ -3,6 +3,10 @@ Visual programming language: SKetches of Abstract Syntax Trees. IC.
 
 Skastic is a visual, functional programming language where programs are contained in image files (png). Skastic program files contain nodes and edges representing an abstract syntax tree, or parse tree.
 
+Here's an example of a program which defines the factorial function:
+
+![Fibonacci function in skastic](./factorial.ska.png)
+
 ## Requirements and installation
 
 Skastic requires python 3.4 or later. With a relatively small amount of effort it could be made to work on earlier versions of python, but the source code uses the python ast module, which has changed somewhat since 2.7. I've installed python 3.6.2 from the official python site. On MacOS, you should be able to install python 3.6 using brew. For best results, create a virtualenv for running skastic.
