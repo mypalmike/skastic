@@ -7,6 +7,8 @@ Here's an example of a program which defines the factorial function:
 
 ![Fibonacci function in skastic](./factorial.ska.png)
 
+The structure of the program should be familiar to those who are familiar with LISP programming.
+
 ## Requirements and installation
 
 Skastic requires python 3.4 or later. With a relatively small amount of effort it could be made to work on earlier versions of python, but the source code uses the python ast module, which has changed somewhat since 2.7. I've installed python 3.6.2 from the official python site. On MacOS, you should be able to install python 3.6 using brew. For best results, create a virtualenv for running skastic.
