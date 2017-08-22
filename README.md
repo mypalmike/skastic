@@ -49,6 +49,12 @@ Finding the endpoints of edge contours is performed using a two-pass breadth-fir
 
 At this point, each endpoint is associated with the closest node (or the top edge of the image for indicating root node, as explained previously). We now have what should be an acyclic graph.
 
+#### Symbol recognition
+
+My hope for this project was to create a language which could be hand-drawn on paper, scanned or photographed, and executed. As such, the initial plan was to use handwritten symbols. Unfortunately, I could not find a reliable, open-source handwriting recognition library. As such, I have settled for now on nodes which have computer-readable fonts.
+
+Symbol recognition involves saving an image of each node's bounding box, shelling out to tesseract, and capturing standard output with the result. I have found that using GIMP to create skastic programs, 16-point Arial font with an extra 1 pixel of spacing yields reliable OCR results. Without the extra spacing, tesseract can stumble because the default spacing is very tight.
+
 ### Graph to tree conversion
 
 The graph is now converted into a tree. Starting at the root node, each edge is followed recursively. Newly discovered edges are children of the current node.
