@@ -17,7 +17,7 @@ Skastic uses opencv for image analysis. On MacOS, these instructions should help
 
 Skastic also requires tesseract 3.x for optical character recognition. The command line tool must be installed on the system and accessible from the user's PATH. On MacOS, tesseract can be installed using brew. For other platforms, see https://github.com/tesseract-ocr/tesseract for detailed installation instructions.
 
-I have yet to create a setup.py file and it's not yet on pypi. For now, just copy the skastic python source files into a directory, put your image files there, and run "./skastic.py <filename>". Filenames should be of the form <name>.ska.png.
+I have yet to create a setup.py file and it's not yet on pypi. For now, just copy the skastic python source files into a directory, put your image files there, and run "./skastic.py" with options and the filename of the expression to evaluate. Skastic source code filenames should end in .ska.png.
 
 ## Usage
 
@@ -29,7 +29,7 @@ All python builtin functions should be callable.
 
 ## Limitations
 
-Recursive functions are not working. This is a frustrating bug, particularly given my initial test case was the factorial function. A recursive function in skastic fails during execution with "NameError: name '<function name>' is not defined" when the function tries to call itself. Yet the same exact AST works fine in a test application. This will hopefully be fixed soon, but I have already pulled out quite a bit of hair trying to track down the problem.
+Recursive functions are not working. This is a frustrating bug, particularly given my initial test case was the factorial function. A recursive function in skastic fails during execution with "NameError: name 'function_name' is not defined" when the function tries to call itself. Yet the same exact AST works fine in a test application. This will hopefully be fixed soon, but I have already pulled out quite a bit of hair trying to track down the problem.
   
 Not all python operations are implemented yet.
 
