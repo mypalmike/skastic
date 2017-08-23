@@ -70,7 +70,7 @@ class Page:
           contour_line.nodes[1] is not None and contour_line.nodes[1] != EDGE_NODE):
         pt1 = contour_line.nodes[0].centroid
         pt2 = contour_line.nodes[1].centroid
-        cv2.line(img, pt1, pt2, (0, 255, 255), 4)
+        cv2.line(img, pt1, pt2, rand_bgr(), 4)
 
   def draw_parse_tree(self, img, node, depth):
     brightness = 50
@@ -196,3 +196,4 @@ class Page:
 
     # cv2.imshow("Mask", self.img_contour)
     # cv2.imshow("Text", self.img_text)
+

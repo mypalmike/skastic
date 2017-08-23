@@ -60,7 +60,9 @@ class ContourNode:
           args=ast_args,
           body=[ast.Return(value=self.children[1].to_python_ast())],
           decorator_list=[],
-          returns=None)
+          returns=None,
+          lineno=self.centroid[1],
+          col_offset=self.centroid[0])
     elif self.text == 'if':
       tst = self.children[0].to_python_ast()
       body = self.children[1].to_python_ast()
@@ -71,48 +73,68 @@ class ContourNode:
       return ast.IfExp(
           test=tst,
           body=body,
-          orelse=orelse)
+          orelse=orelse,
+          lineno=self.centroid[1],
+          col_offset=self.centroid[0])
     elif self.text == 'true':
-      return ast.NameConstant(value=True)
+      return ast.NameConstant(
+          value=True,
+          lineno=self.centroid[1],
+          col_offset=self.centroid[0])
     elif self.text == 'false':
-      return ast.NameConstant(value=False)
+      return ast.NameConstant(
+          value=False,
+          lineno=self.centroid[1],
+          col_offset=self.centroid[0])
     elif self.text.isdigit():
       return ast.Num(
-          n=int(self.text))
+          n=int(self.text),
+          lineno=self.centroid[1],
+          col_offset=self.centroid[0])
     elif self.text == '=':
       left = self.children[0].to_python_ast()
       right = self.children[1].to_python_ast()
       return ast.Compare(
           left=left,
           ops=[ast.Eq()],
-          comparators=[right])
+          comparators=[right],
+          lineno=self.centroid[1],
+          col_offset=self.centroid[0])
     elif self.text == '+':
       left = self.children[0].to_python_ast()
       right = self.children[1].to_python_ast()
       return ast.BinOp(
           left=left,
           op=ast.Add(),
-          right=right)
+          right=right,
+          lineno=self.centroid[1],
+          col_offset=self.centroid[0])
     elif self.text == '-':
       left = self.children[0].to_python_ast()
       right = self.children[1].to_python_ast()
       return ast.BinOp(
           left=left,
           op=ast.Sub(),
-          right=right)
+          right=right,
+          lineno=self.centroid[1],
+          col_offset=self.centroid[0])
     elif self.text == '*':
       left = self.children[0].to_python_ast()
       right = self.children[1].to_python_ast()
       return ast.BinOp(
           left=left,
           op=ast.Mult(),
-          right=right)
+          right=right,
+          lineno=self.centroid[1],
+          col_offset=self.centroid[0])
     else:
       if len(self.children) == 0:
         # Local var
         return ast.Name(
             id=self.text,
-            ctx=ast.Load())
+            ctx=ast.Load(),
+            lineno=self.centroid[1],
+            col_offset=self.centroid[0])
       else:
         # Function call
         if self.children[0].text == '':
@@ -125,7 +147,9 @@ class ContourNode:
                   id=self.text,
                   ctx=ast.Load()),
               args=args,
-              keywords=[])
+              keywords=[],
+              lineno=self.centroid[1],
+              col_offset=self.centroid[0])
 
 
 class ContourLine:
