@@ -47,8 +47,8 @@ class Skastic:
     function_asts = [x.python_ast for x in self.function_pages.values()]
     module_ast = make_module(function_asts, self.main_page.python_ast)
 
-    if self.args.dump:
-      print(ast.dump(module_ast, include_attributes=True))
+    if self.args.dump_ast:
+      print(ast.dump(module_ast))
 
     exec(compile(module_ast, filename="<ast>", mode="exec"))
 
@@ -59,7 +59,7 @@ def main(argv=sys.argv):
   parser.add_argument('--include', '-i', action='append', help='Include file', default = [])
   parser.add_argument('--draw', action='append', help='Do not execute. For debugging an '
                       'image, display one of (contours, lines, connections, parse-tree)', default = [])
-  parser.add_argument('--dump', action='store_true', help='Do not execute. For debugging, '
+  parser.add_argument('--dump-ast', action='store_true', help='Do not execute. For debugging, '
                       'dump ast')
   args = parser.parse_args(argv[1:])
 
