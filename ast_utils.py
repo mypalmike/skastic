@@ -19,13 +19,6 @@ COMPARES = {
   '>=': ast.GtE,
 }
 
-# def recognized(text):
-#   return (
-#       (text.isdigit()) or
-#       (text in SPECIAL_FORMS) or
-#       (text in BINOPS) or
-#       (text in COMPARES) or
-#       (text in dir(__builtins__)))
 
 def make_module(function_asts, main_ast):
   module_body = function_asts

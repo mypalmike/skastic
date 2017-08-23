@@ -25,19 +25,6 @@ class Skastic:
       self.main_page.draw(args.draw)
     else:
       self.load_includes(args)
-      # self.load_externs()
-
-  # def load_externs(self):
-  #   externs = self.main_page.externs.copy()
-  #   while externs:
-  #     extern = externs.pop()
-  #     extern_filename = '{}.ska.png'.format(extern)
-  #     extern_page = Page(extern_filename, False)
-  #     self.function_pages[extern] = extern_page
-  #     # # There's probably a more functional way to do this:
-  #     # for page_extern in extern_page.externs:
-  #     #   if not recognized(page_extern):
-  #     #     externs.add(page_extern)
 
   def load_includes(self, args):
     for filename in args.include:
@@ -56,9 +43,9 @@ class Skastic:
 def main(argv=sys.argv):
   parser = argparse.ArgumentParser(description='Execute a skastic image.')
   parser.add_argument('filename', help='Name of .ska.png file to execute')
-  parser.add_argument('--include', '-i', action='append', help='Include file', default = [])
+  parser.add_argument('--include', '-i', action='append', help='Include file', default=[])
   parser.add_argument('--draw', action='append', help='Do not execute. For debugging an '
-                      'image, display one of (contours, lines, connections, parse-tree)', default = [])
+                      'image, display one of (contours, lines, connections, parse-tree)', default=[])
   parser.add_argument('--dump-ast', action='store_true', help='Do not execute. For debugging, '
                       'dump ast')
   args = parser.parse_args(argv[1:])

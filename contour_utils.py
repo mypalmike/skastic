@@ -47,9 +47,9 @@ def categorize_contour(
 
 def neighbors(img, point):
   """
-  Get a list of neighboring points within the contour. Input point must me in the contour.
-  4-directions only (not diagonals). Contour must be greyscale format with white (255)
-  contour.
+  Get a list of neighboring points within the contour. Input point must be
+  in the contour. 4-directions only (not diagonals). Contour must be greyscale
+  format with white (255) contour.
 
   """
   results = []

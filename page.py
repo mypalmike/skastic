@@ -8,6 +8,7 @@ from contour_utils import categorize_contour, CONTOUR_BOX, CONTOUR_LINE
 from graph import ContourLine, ContourNode, EDGE_NODE
 from misc import CompilerException, rand_bgr
 
+
 class Page:
   def __init__(self, filename, analyze_only):
     self.externs = set()
@@ -157,7 +158,7 @@ class Page:
       visited_nodes.add(curr_node)
       connected_nodes = self.connected_nodes(curr_node)
       for connected_node in connected_nodes:
-        if connected_node != EDGE_NODE and not connected_node in visited_nodes:
+        if connected_node != EDGE_NODE and connected_node not in visited_nodes:
           curr_node.children.append(connected_node)
           stack.append(connected_node)
 
@@ -196,4 +197,3 @@ class Page:
 
     # cv2.imshow("Mask", self.img_contour)
     # cv2.imshow("Text", self.img_text)
-

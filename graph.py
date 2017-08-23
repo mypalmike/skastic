@@ -9,6 +9,7 @@ from contour_utils import extreme_points
 # Marker for edge node
 EDGE_NODE = -1
 
+
 class ContourNode:
   def __init__(self, img_contour, contour):
     self.img_contour = img_contour
