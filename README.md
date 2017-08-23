@@ -25,7 +25,7 @@ I have yet to create a setup.py file and it's not yet on pypi. For now, just cop
 
 This will execute the expression represented in some_expression.ska.png while including any functions defined in the files specified with -i.
 
-All python builtin functions should work.
+All python builtin functions should be callable.
 
 ## Limitations
 
