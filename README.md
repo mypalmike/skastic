@@ -19,6 +19,26 @@ Skastic also requires tesseract 3.x for optical character recognition. The comma
 
 I have yet to create a setup.py file and it's not yet on pypi. For now, just copy the skastic python source files into a directory, put your image files there, and run "./skastic.py <filename>". Filenames should be of the form <name>.ska.png.
 
+## Usage
+
+./skastic.py -i some_function_def.ska.png -i another_function_def.ska.png some_expression.ska.png
+
+This will execute the expression represented in some_expression.ska.png while including any functions defined in the files specified with -i.
+
+All python builtin functions should work.
+
+## Limitations
+
+Recursive functions are not working. This is a frustrating bug, particularly given my initial test case was the factorial function. A recursive function in skastic fails during execution with "NameError: name '<function name>' is not defined" when the function tries to call itself. Yet the same exact AST works fine in a test application. This will hopefully be fixed soon, but I have already pulled out quite a bit of hair trying to track down the problem.
+  
+Not all python operations are implemented yet.
+
+There is no support yet for string literals.
+
+Although you can create lists using the builtin "list" function, there is no support for referencing them. I plan to add LISP-style access in the form of "car" and "cdr" functions later.
+
+There is no facility for creating local variables within a function. I may be adding LISP-style "let" functionality at some point.
+
 ## How it works
 
 A valid skastic program is an image with nodes and edges.
