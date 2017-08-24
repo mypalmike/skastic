@@ -65,7 +65,7 @@ OpenCV thresholding is used to create an inverted, greyscale image where the nod
 
 #### Edge analysis
 
-Finding the endpoints of edge contours is performed using a two-pass breadth-first search algorithm. A breadth-first search is run starting at a random point on the contour, marking the distance (dx + dy) of every point in the contour. The farthest point is one endpoint, E1. The same algorithm is then run starting at E1 to find the farthest point away from E2, which is E2.
+Finding the endpoints of edge contours is performed using a two-pass breadth-first search algorithm. A breadth-first search is run starting at a random point on the contour, marking the distance (dx + dy) of every point in the contour. The farthest point is one endpoint, E1. The same algorithm is then run starting at E1 to find the farthest point away from E1, which is E2.
 
 At this point, each endpoint is associated with the closest node (or the top edge of the image for indicating root node, as explained previously). We now have what should be an acyclic graph.
 
